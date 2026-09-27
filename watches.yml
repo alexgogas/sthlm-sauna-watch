@@ -1,0 +1,38 @@
+# What to watch. Edit this file (e.g. in the GitHub mobile app) to change filters.
+# Every field is optional except that a watch should narrow things down somehow.
+#
+#   name:      label shown in the notification
+#   session:   Mixbastu | Dambastu | Herrbastu | Yoga & Sauna | Aufguss | Allmänhetens pass
+#   persons:   1, 2 or 3 (default 1). Alert only when this many spots are free.
+#   date:      one specific day, YYYY-MM-DD
+#   time:      exact slot start, HH:MM (slots start on odd hours: 07:00, 09:00, ... 23:00)
+#   days:      list of weekdays, e.g. [tue, wed, thu]
+#   after / before:  slot start time window, HH:MM
+#   from_date / to_date:  date range (default: today .. 14 days ahead)
+#   alert_if_already_open: false = only alert on cancellations, not on slots that
+#                          were already free when the watch was added (default true)
+#
+# A watch stops being checked once it has sent an alert. To start it again, edit
+# it (any change counts, e.g. the name) or remove it and add it back.
+#
+# Slots starting within the next hour are ignored, and a watch whose last
+# possible slot is less than an hour away stops being checked.
+
+# How often to check, in minutes. 5 is the minimum (and default); GitHub may run
+# checks a few minutes late.
+check_every_minutes: 5
+
+# Examples (uncomment and edit, or use the WATCHES repo variable instead):
+#   - name: Sat 4 Oct 21:00 Mix x1
+#     session: Mixbastu
+#     date: 2026-10-04
+#     time: "21:00"
+#     persons: 1
+#
+#   - name: Weekday evenings x2
+#     session: Mixbastu
+#     days: [tue, wed, thu]
+#     after: "19:00"
+#     persons: 2
+#     alert_if_already_open: false
+watches: []

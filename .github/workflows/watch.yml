@@ -1,0 +1,44 @@
+name: Sauna watch
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # every 5 min (GitHub may delay runs by a few minutes)
+  workflow_dispatch:         # "Run workflow" button for a manual check
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sauna-watch
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      # state.json (prevents duplicate alerts) lives in the Actions cache, not the
+      # repo, so the watched slots are never published. Cache keys are immutable,
+      # so each run saves a new key and the next run restores the latest one.
+      - name: Restore state
+        uses: actions/cache/restore@v4
+        with:
+          path: state.json
+          key: sauna-state-${{ github.run_id }}
+          restore-keys: sauna-state-
+      - name: Check availability
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          WATCHES: ${{ vars.WATCHES }}   # optional: overrides watches.yml if set
+        run: python watch.py
+      - name: Save state
+        if: hashFiles('state.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: state.json
+          key: sauna-state-${{ github.run_id }}

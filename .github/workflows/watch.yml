@@ -17,8 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: pip install pyyaml
@@ -26,7 +26,7 @@ jobs:
       # repo, so the watched slots are never published. Cache keys are immutable,
       # so each run saves a new key and the next run restores the latest one.
       - name: Restore state
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: state.json
           key: sauna-state-${{ github.run_id }}
@@ -38,7 +38,7 @@ jobs:
         run: python watch.py
       - name: Save state
         if: hashFiles('state.json') != ''
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: state.json
           key: sauna-state-${{ github.run_id }}

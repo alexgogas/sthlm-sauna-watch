@@ -35,7 +35,8 @@ PRODUCTS = {
 }
 DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 DEFAULT_LOOKAHEAD_DAYS = 14
-MIN_INTERVAL_MINUTES = 5  # the workflow cron runs every 5 min, so faster is impossible
+MIN_INTERVAL_MINUTES = 5  # the workflow is triggered every 5 min, so faster is impossible
+DEFAULT_INTERVAL_MINUTES = 15
 STOP_BEFORE_START = timedelta(hours=1)  # no alerts for slots starting sooner than this
 STATE_FILE = os.environ.get("STATE_FILE", "state.json")
 
@@ -158,7 +159,7 @@ def main():
     # The workflow fires every 5 min; skip runs until check_every_minutes has
     # passed. Half a cron period of slack stops GitHub's delays from pushing a
     # check back a whole extra cycle.
-    interval = max(int(config.get("check_every_minutes", MIN_INTERVAL_MINUTES)), MIN_INTERVAL_MINUTES)
+    interval = max(int(config.get("check_every_minutes", DEFAULT_INTERVAL_MINUTES)), MIN_INTERVAL_MINUTES)
     last = state.get("last_check")
     if last:
         elapsed = (now - datetime.fromisoformat(last)).total_seconds() / 60
@@ -234,6 +235,10 @@ def main():
 def save_state(state):
     with open(STATE_FILE, "w", encoding="utf-8") as f:
         json.dump(state, f, indent=1, sort_keys=True)
+    # Tell the workflow to save the state; skipped runs leave it untouched.
+    if os.environ.get("GITHUB_OUTPUT"):
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+            f.write("state_changed=true\n")
 
 
 if __name__ == "__main__":

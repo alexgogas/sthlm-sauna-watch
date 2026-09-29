@@ -1,9 +1,12 @@
 name: Sauna watch
 
 on:
+  # GitHub's scheduler is best-effort and in practice fires only every few hours,
+  # so an external cron (cron-job.org, see README) triggers workflow_dispatch
+  # every 5 min. The schedule stays as a fallback.
   schedule:
-    - cron: "*/5 * * * *"   # every 5 min (GitHub may delay runs by a few minutes)
-  workflow_dispatch:         # "Run workflow" button for a manual check
+    - cron: "*/5 * * * *"
+  workflow_dispatch:         # external cron + "Run workflow" button
 
 permissions:
   contents: read
@@ -32,12 +35,13 @@ jobs:
           key: sauna-state-${{ github.run_id }}
           restore-keys: sauna-state-
       - name: Check availability
+        id: check
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           WATCHES: ${{ vars.WATCHES }}   # optional: overrides watches.yml if set
         run: python watch.py
       - name: Save state
-        if: hashFiles('state.json') != ''
+        if: steps.check.outputs.state_changed == 'true'
         uses: actions/cache/save@v6
         with:
           path: state.json

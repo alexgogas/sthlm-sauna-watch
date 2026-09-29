@@ -18,9 +18,9 @@
 # Slots starting within the next hour are ignored, and a watch whose last
 # possible slot is less than an hour away stops being checked.
 
-# How often to check, in minutes. 5 is the minimum (and default); GitHub may run
-# checks a few minutes late.
-check_every_minutes: 5
+# How often to check, in minutes: default 15, minimum 5. GitHub may start runs
+# a few minutes late.
+check_every_minutes: 15
 
 # Examples (uncomment and edit, or use the WATCHES repo variable instead):
 #   - name: Sat 4 Oct 21:00 Mix x1

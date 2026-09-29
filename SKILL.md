@@ -41,7 +41,7 @@ Slots are 2 hours long. Weekly member schedule: Mon Herrbastu 07–11, Yoga 11�
 Apply the user's filters (days, time window, session type, persons). Show a compact list: `Tue 30 Sep 21:00 · Mixbastu · 3 free`. Say clearly if nothing matches, and mention the nearest alternative. End with the booking link: https://sthlmsauna.se/boka/
 
 ## 2. Watches: alert when a full slot frees up
-Watches run on GitHub Actions in the user's public `sthlm-sauna-watch` repo. Below, `$REPO` means `"$(gh api user --jq .login)/sthlm-sauna-watch"`. It checks every 5+ minutes and sends a phone push via ntfy that opens the booking page. It never books.
+Watches run on GitHub Actions in the user's public `sthlm-sauna-watch` repo. Below, `$REPO` means `"$(gh api user --jq .login)/sthlm-sauna-watch"`. A cron-job.org job starts it every 5 minutes (GitHub's own schedule only fires every few hours). Each alert is a phone push via ntfy that opens the booking page. It never books.
 The watch list is private: it lives in the repo **variable** `WATCHES` (a YAML document), not in the repo files. Manage it with the `gh` CLI; always pass `--repo $REPO`.
 
 If this surface can't run shell commands with a logged-in `gh`, say so. Show the user the full YAML to paste at github.com/<their username>/sthlm-sauna-watch → Settings → Secrets and variables → Actions → Variables → `WATCHES`.
@@ -51,13 +51,14 @@ Before any watch operation, run `gh repo view $REPO`. If the repo doesn't exist,
 1. **gh:** run `gh auth status`. If `gh` is missing or not logged in, ask the user to install it (`brew install gh`) and run `gh auth login` themselves. Never handle their GitHub password or tokens.
 2. **Repo:** tell the user a **public** repo named `sthlm-sauna-watch` will be created in their account (public repos get free unlimited Actions minutes; the watch list and notification topic stay private). After they say yes, run `gh repo create sthlm-sauna-watch --public --template alexgogas/sthlm-sauna-watch`. Then run `gh api repos/$REPO/actions/permissions -X PUT -F enabled=true` to make sure Actions is on.
 3. **Notifications:** generate a topic with `T="sauna-$(openssl rand -hex 12)"` and save it with `gh secret set NTFY_TOPIC --repo $REPO --body "$T"`. Show the topic to the user **once**. Ask them to install the ntfy app (iOS/Android), tap +, and subscribe to exactly that topic on the default server `ntfy.sh`. Tell them to keep the topic private, because anyone who knows it can read the alerts. Once they've subscribed, send a test with `curl -s -d "Sauna watch is set up" "ntfy.sh/$T"` and ask whether it arrived. Don't repeat the topic later.
-4. **Watch list:** write `check_every_minutes: 5` + `watches: []` to the `WATCHES` variable (see Read / write).
+4. **Watch list:** write `check_every_minutes: 15` + `watches: []` to the `WATCHES` variable (see Read / write).
 5. **Test run:** run `gh workflow run watch.yml --repo $REPO`. Then run `gh run list --repo $REPO --workflow watch.yml --limit 1` and `gh run watch <id> --repo $REPO --exit-status`. The log should end with "Nothing to check". If the run list is empty, wait a few seconds and list again.
-6. Tell the user setup is done, then carry on with what they asked for (usually adding a watch).
+6. **5-minute trigger:** this step is manual; the user must do it themselves, because it needs a new cron-job.org account and a GitHub token. Walk them through the "Reliable 5-minute trigger" section of the repo README (`gh api repos/$REPO/readme --jq .content | base64 -d`). Fill in their username in the URL. Never ask them to paste the token into the chat. When they're done, wait about 10 minutes, then run `gh run list --repo $REPO --workflow watch.yml --event workflow_dispatch --limit 5`: runs should be ~5 minutes apart.
+7. Tell the user setup is done, then carry on with what they asked for (usually adding a watch).
 
 ### Format
 ```yaml
-check_every_minutes: 5        # how often to check; minimum and default 5
+check_every_minutes: 15       # how often to check; default 15, minimum 5
 watches:
   - name: Sat 4 Oct 21:00 Mix x2   # shown in the notification; keep it short
     session: Mixbastu              # Mixbastu | Dambastu | Herrbastu | Yoga & Sauna | Aufguss | Allmänhetens pass
@@ -73,20 +74,20 @@ How the watcher behaves, so you can explain it:
 - Only the `WATCHES` variable is used when it's set; `watches.yml` in the repo is ignored.
 
 ### Read / write
-- Read: `gh variable get WATCHES --repo $REPO`. If it isn't found, start from `check_every_minutes: 5` + `watches: []`.
+- Read: `gh variable get WATCHES --repo $REPO`. If it isn't found, start from `check_every_minutes: 15` + `watches: []`.
 - Write: always read, modify and write back the **whole** document. Keep `check_every_minutes` and the other watches exactly as they were. Write the YAML to a temp file, then run `gh variable set WATCHES --repo $REPO < <file>`. Read it back to confirm.
 - On every write, drop watches whose `date` / `to_date` is in the past, and tell the user which ones you dropped.
 
 ### Add a watch
 1. Check current availability first (section 1). If the slot is already open, say so with the booking link and ask whether the user still wants a watch.
 2. Build the entry. For a specific slot use `session`, `date`, `time` and `persons`. For a filter ("any Mixbastu Tue–Thu after 19"), use `days` / `after` / `before` / dates, plus `alert_if_already_open: false` if the user has just seen the slots that are already open.
-3. Write it (see above). Then run `gh workflow view watch.yml --repo $REPO`. If the workflow is disabled (GitHub pauses it after 60 days without commits), enable it with `gh workflow enable`.
+3. Write it (see above). Then run `gh workflow view watch.yml --repo $REPO`. If the workflow is disabled (GitHub pauses it after 60 days without commits), enable it with `gh workflow enable`. Also run `gh run list --repo $REPO --workflow watch.yml --limit 3`. If the newest run is more than 20 minutes old, warn that the cron-job.org trigger isn't working (expired token, or not set up yet) and point to setup step 6.
 4. Confirm in one or two lines: what is watched, for how many people, how often, and that it stops after the alert or an hour before the slot. Remind the user that GitHub can run checks a few minutes late.
 
 ### List / remove / change
 - List: show one line per watch, e.g. `Sat 4 Oct 21:00 · Mixbastu · x2`, and mark expired ones. Whether a watch has already alerted isn't visible (that state is kept inside the Actions run); the user will have had the notification.
 - Remove: write the document back without that watch. To remove all, use `watches: []`.
-- Change frequency: set `check_every_minutes` (5 minimum; lower values act as 5).
+- Change frequency: set `check_every_minutes` (default 15; minimum 5, lower values act as 5).
 - Pause or resume everything: `gh workflow disable watch.yml` / `gh workflow enable watch.yml`.
 
 ## 3. Booking (only after explicit approval)

@@ -18,12 +18,35 @@ using the `gh` CLI (needs a Claude session that can run commands, e.g. Claude Co
 3. **Secret:** repo → Settings → Secrets and variables → Actions → *New repository secret*:
    `NTFY_TOPIC` = your topic name.
 4. **Test:** Actions tab → *Sauna watch* → *Run workflow*. The log should end with "Nothing to check".
+5. **Trigger:** set up the 5-minute trigger below.
+
+## Reliable 5-minute trigger (cron-job.org)
+
+GitHub's own schedule is best-effort and in practice runs only every few hours, which
+misses most cancellations. A free [cron-job.org](https://cron-job.org) job fixes this by
+starting the workflow every 5 minutes through GitHub's API.
+
+1. **GitHub token:** github.com → Settings → Developer settings → Personal access tokens →
+   *Fine-grained tokens* → *Generate new token*.
+   - Name: `sauna cron`. Expiration: up to a year (set a reminder to renew it).
+   - Repository access: *Only select repositories* → `sthlm-sauna-watch`.
+   - Permissions → Repository permissions → **Actions: Read and write**. Nothing else.
+   - Generate and copy the token. It can only start and read this repo's workflows.
+2. **cron-job.org:** sign up (free) → *Create cronjob*:
+   - URL: `https://api.github.com/repos/<your username>/sthlm-sauna-watch/actions/workflows/watch.yml/dispatches`
+   - Schedule: every 5 minutes. Turn on the notification for failed runs.
+   - *Advanced* tab: request method **POST**, request body `{"ref":"main"}`, and headers
+     `Authorization: Bearer <token>`, `Accept: application/vnd.github+json`,
+     `X-GitHub-Api-Version: 2022-11-28`.
+   - Save, then use *Test run*: the response should be **204 No Content**.
+3. **Check:** after 10 minutes the Actions tab should show *Sauna watch* runs every
+   ~5 minutes. `check_every_minutes` still controls how often a run actually checks.
 
 ## Changing what you watch
 
 Edit `watches.yml` (GitHub mobile app or web → pencil icon → commit). Examples are in the file.
 
-- **How often:** set `check_every_minutes` at the top of the file (minimum and default: 5).
+- **How often:** set `check_every_minutes` at the top of the file (default 15, minimum 5).
 - **Stops after a find:** once a watch alerts, it's no longer checked, so you won't get
   more alerts for it. To re-arm it, edit it in any way (even just the name) or remove and
   re-add it.
@@ -41,8 +64,10 @@ watches for you. It edits the `WATCHES` variable with the `gh` CLI, so this need
 Claude session that can run commands on a machine where `gh` is logged in.
 
 ## Notes
-- GitHub's scheduler may delay runs by several minutes at busy times.
-- GitHub pauses scheduled workflows in public repos after 60 days with no commits.
-  If that happens, click "Enable workflow" in the Actions tab.
+- GitHub disables workflows in public repos after 60 days with no commits. The
+  cron-job.org job then fails (you get its failure email): click "Enable workflow" in
+  the Actions tab.
+- When the token expires, cron-job.org starts failing too: create a new token and
+  paste it into the job's Authorization header.
 - Session IDs: 1793 Mixbastu, 1792 Dambastu, 1786 Herrbastu, 25382 Yoga & Sauna,
   78381 Aufguss, 87268 Allmänhetens pass.

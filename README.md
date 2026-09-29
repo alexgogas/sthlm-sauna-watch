@@ -4,16 +4,20 @@ Checks sthlmsauna.se (Vinterviken) every ~5 minutes and pushes a phone notificat
 when a slot you're watching frees up. Tapping the notification opens the booking page.
 It **never books** – you do that yourself in two taps.
 
-## Setup (≈10 min, once)
+## Setup (≈5 min, once)
 
+**With Claude:** install the `sthlm-sauna` skill (`SKILL.md` in this repo) and ask Claude
+to watch a slot. If you don't have a watcher repo yet, it offers to set everything up
+using the `gh` CLI (needs a Claude session that can run commands, e.g. Claude Code).
+
+**By hand:**
 1. **Phone notifications:** install the **ntfy** app (iOS / Android). Subscribe to a
    topic with a long random name nobody can guess, e.g. `sauna-` followed by 12+ random characters.
-2. **GitHub repo:** create a new **public** repo (public = unlimited free Actions minutes;
-   a private repo would run out at a 5-min interval). Upload everything in this folder,
-   including the hidden `.github/workflows/watch.yml`.
+2. **GitHub repo:** click **Use this template** → *Create a new repository*, name it
+   `sthlm-sauna-watch` and make it **public** (public = unlimited free Actions minutes).
 3. **Secret:** repo → Settings → Secrets and variables → Actions → *New repository secret*:
    `NTFY_TOPIC` = your topic name.
-4. **Test:** Actions tab → *Sauna watch* → *Run workflow*. Check the log shows slots.
+4. **Test:** Actions tab → *Sauna watch* → *Run workflow*. The log should end with "Nothing to check".
 
 ## Changing what you watch
 

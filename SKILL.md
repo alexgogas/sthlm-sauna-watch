@@ -46,6 +46,15 @@ The watch list is private: it lives in the repo **variable** `WATCHES` (a YAML d
 
 If this surface can't run shell commands with a logged-in `gh`, say so. Show the user the full YAML to paste at github.com/<their username>/sthlm-sauna-watch → Settings → Secrets and variables → Actions → Variables → `WATCHES`.
 
+### First-time setup
+Before any watch operation, run `gh repo view $REPO`. If the repo doesn't exist, offer to set it up (about 5 minutes) and do these steps in order. Stop and explain if any step fails.
+1. **gh:** run `gh auth status`. If `gh` is missing or not logged in, ask the user to install it (`brew install gh`) and run `gh auth login` themselves. Never handle their GitHub password or tokens.
+2. **Repo:** tell the user a **public** repo named `sthlm-sauna-watch` will be created in their account (public repos get free unlimited Actions minutes; the watch list and notification topic stay private). After they say yes, run `gh repo create sthlm-sauna-watch --public --template alexgogas/sthlm-sauna-watch`. Then run `gh api repos/$REPO/actions/permissions -X PUT -F enabled=true` to make sure Actions is on.
+3. **Notifications:** generate a topic with `T="sauna-$(openssl rand -hex 12)"` and save it with `gh secret set NTFY_TOPIC --repo $REPO --body "$T"`. Show the topic to the user **once**. Ask them to install the ntfy app (iOS/Android), tap +, and subscribe to exactly that topic on the default server `ntfy.sh`. Tell them to keep the topic private, because anyone who knows it can read the alerts. Once they've subscribed, send a test with `curl -s -d "Sauna watch is set up" "ntfy.sh/$T"` and ask whether it arrived. Don't repeat the topic later.
+4. **Watch list:** write `check_every_minutes: 5` + `watches: []` to the `WATCHES` variable (see Read / write).
+5. **Test run:** run `gh workflow run watch.yml --repo $REPO`. Then run `gh run list --repo $REPO --workflow watch.yml --limit 1` and `gh run watch <id> --repo $REPO --exit-status`. The log should end with "Nothing to check". If the run list is empty, wait a few seconds and list again.
+6. Tell the user setup is done, then carry on with what they asked for (usually adding a watch).
+
 ### Format
 ```yaml
 check_every_minutes: 5        # how often to check; minimum and default 5

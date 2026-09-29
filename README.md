@@ -1,10 +1,39 @@
 # STHLM Sauna watch
 
-Checks sthlmsauna.se (Vinterviken) every ~5 minutes and pushes a phone notification
+Checks sthlmsauna.se (Vinterviken) every 15 minutes (adjustable down to 5) and pushes a phone notification
 when a slot you're watching frees up. Tapping the notification opens the booking page.
 It **never books** – you do that yourself in two taps.
 
-## Setup (≈5 min, once)
+## How it works
+
+```
+cron-job.org (every 5 min)
+   │  POST workflow_dispatch
+   ▼
+GitHub Actions: watch.yml
+   1. restore state.json          ◀── Actions cache
+   2. python watch.py
+        reads WATCHES + NTFY_TOPIC ◀── repo variable / secret (private)
+        fetches availability       ◀── sthlmsauna.se API
+        slot went full → free?     ──▶ ntfy.sh ──▶ phone push (tap → booking page)
+   3. save state.json if changed  ──▶ Actions cache
+
+Claude + sthlm-sauna skill ── gh CLI ──▶ WATCHES variable (add / list / remove watches)
+```
+
+- **Trigger:** cron-job.org calls GitHub's `workflow_dispatch` API every 5 minutes. GitHub's own
+  `schedule` stays in the workflow as a fallback, but in practice fires only every few hours.
+- **Watch list:** the `WATCHES` repository variable (private). If it isn't set, `watches.yml` is used.
+- **Check interval:** each run exits early unless `check_every_minutes` (default 15) has passed
+  since the last check.
+- **State:** `state.json` remembers each slot's last free count, which watches have already
+  alerted, and when the last check ran. It lives in the Actions cache, never in the repo, so
+  your schedule isn't published.
+- **Alerts:** a watch alerts when a matching slot has enough free spots for `persons`, either
+  after being full or already when the watch starts (unless `alert_if_already_open: false`), then stops. Slots starting within an hour are ignored.
+- **Read-only:** nothing ever books. The notification only opens the booking page.
+
+## Setup (≈15 min, once)
 
 **With Claude:** install the `sthlm-sauna` skill (`SKILL.md` in this repo) and ask Claude
 to watch a slot. If you don't have a watcher repo yet, it offers to set everything up
